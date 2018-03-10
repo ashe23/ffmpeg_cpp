@@ -10,13 +10,15 @@ extern "C"
 }
 
 // include c++ default headers
+#include <iostream>
 #include <string>
+#include <fstream>
 
 class FFAudioEncoder
 {
 public:
 	FFAudioEncoder() = default;
-	FFAudioEncoder(std::string in_file) : InputFile(in_file) {}
+	FFAudioEncoder(std::string in_file, std::string out_file) : InputFileName(in_file), OutputFileName(out_file) {}
 	~FFAudioEncoder();
 	void StartEncode();
 private:
@@ -24,9 +26,13 @@ private:
 	AVCodecContext* CodecContext;
 	AVFrame* Frame;
 	AVPacket* Packet;
-	std::string InputFile;
-
+	std::string InputFileName;
+	std::string OutputFileName;
+	FILE *OutputFile; // todo:ashe23 change to c++ later
 private:
+	void EncodeFrame(bool flush);
+	void OpenOutputFile();
+	void AllocPacketAndFrame();
 	void Abort(const std::string ErrorMsg);
 	void Cleanup();
 private:
