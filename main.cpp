@@ -4,7 +4,7 @@ int main()
 {
 	
 	// getting pcm data and converting it to wav or mp3
-	FFAudioEncoder AudioEncoder{"assets/audio/sample_u8.pcm", "assets/audio/output.mp3"};
+	FFAudioEncoder AudioEncoder{"assets/audio/sample_s16.pcm", "assets/audio/output.mp3"};
 	AudioEncoder.StartEncode();
 
 
