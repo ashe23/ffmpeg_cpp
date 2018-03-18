@@ -1,4 +1,4 @@
-#include "..\FFAudioEncoder.h"
+#include "FFAudioEncoder.h"
 
 int flush_encoder(AVFormatContext *fmt_ctx, unsigned int stream_index) {
 	int ret;
