@@ -73,8 +73,8 @@
     <LibraryPath>C:\Users\ashe23\Documents\Projects\ffmpeg_cpp\ext\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
-    <IncludePath>C:\Users\ashe23\Documents\Projects\ffmpeg_cpp\ext\include;$(IncludePath)</IncludePath>
-    <LibraryPath>C:\Users\ashe23\Documents\Projects\ffmpeg_cpp\ext\lib;$(LibraryPath)</LibraryPath>
+    <IncludePath>$(ProjectDir)\ext\include;$(IncludePath)</IncludePath>
+    <LibraryPath>$(ProjectDir)\ext\lib;$(LibraryPath)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <IncludePath>C:\Users\ashe23\Documents\Projects\ffmpeg_cpp\ext\include;$(IncludePath)</IncludePath>
@@ -140,6 +140,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FFAudioEncoder.h" />
+    <ClInclude Include="FFheader.h" />
     <ClInclude Include="FFMuxer.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
