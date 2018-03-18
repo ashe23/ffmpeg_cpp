@@ -24,6 +24,17 @@ void FFMuxer::Start()
 	}
 
 	Loop();
+
+	av_write_trailer(FormatContext);
+
+	if (!(OutputFormat->flags & AVFMT_NOFILE))
+	{
+		/* Close the output file. */
+		avio_closep(&FormatContext->pb);
+	}
+
+	avformat_free_context(FormatContext);
+
 ;}
 
 FFMuxer::FFMuxer()
@@ -43,7 +54,8 @@ void FFMuxer::PrintError(int error_code)
 	char error_buf[256];
 	av_make_error_string(error_buf, sizeof(error_buf), error_code);	
 	printf("Error Code: %d\nError Description: %s", error_code, error_buf);
-	system("pause");
+	_sleep(5000);
+	exit(1);
 }
 
 void FFMuxer::AllocateOutputContext()
@@ -250,78 +262,7 @@ void FFMuxer::OpenOutputFile()
 }
 
 void FFMuxer::Loop()
-{
-	// for starting we would generate audio and video, later we will change it to fill from buffer
-	bool encode_video = true;
-	bool encode_audio = true;
-	do
-	{
-		encode_video = WriteVideoFrame();
-
-	} while (encode_video || encode_audio);
-	//while (encode_video || encode_audio)
-	//{
-	//	/* select the stream to encode */
-	//	if (encode_video &&
-	//		(!encode_audio || av_compare_ts(video_st.next_pts, video_st.enc->time_base,
-	//			audio_st.next_pts, audio_st.enc->time_base) <= 0)) 
-	//	{
-	//		encode_video = !write_video_frame(oc, &video_st);
-	//	}
-	//	else 
-	//	{
-	//		encode_audio = !write_audio_frame(oc, &audio_st);
-	//	}
-	//}
-}
-
-bool FFMuxer::WriteFrame(FrameType Type)
-{
-	if (Type == FrameType::Audio)
-	{
-		AVPacket Packet = { 0 };
-		av_init_packet(&Packet);
-
-		// Audio
-		int ErrorCode = avcodec_send_frame(AudioCodecContext, AudioFrame);
-		if (ErrorCode < 0)
-		{
-			PrintError(ErrorCode);
-		}
-
-		ErrorCode = avcodec_receive_packet(AudioCodecContext, &Packet);
-		if (ErrorCode < 0)
-		{
-			PrintError(ErrorCode);
-		}
-
-		av_interleaved_write_frame(FormatContext, &Packet);
-		av_packet_unref(&Packet);
-		return true;
-	}
-	else if (Type == FrameType::Video)
-	{
-		AVPacket Packet = { 0 };
-		av_init_packet(&Packet);
-
-		// Audio
-		int ErrorCode = avcodec_send_frame(VideoCodecContext, VideoFrame);
-		if (ErrorCode < 0)
-		{
-			PrintError(ErrorCode);
-		}
-
-		ErrorCode = avcodec_receive_packet(VideoCodecContext, &Packet);
-		if (ErrorCode < 0)
-		{
-			PrintError(ErrorCode);
-		}
-
-		av_interleaved_write_frame(FormatContext, &Packet);
-		av_packet_unref(&Packet);
-		return true;
-	}
-	return false;
+{	
 }
 
 void FFMuxer::FillYUVImage(AVFrame* pict, int frame_index)
@@ -344,71 +285,40 @@ void FFMuxer::FillYUVImage(AVFrame* pict, int frame_index)
 	}
 }
 
-AVFrame * FFMuxer::GetVideoFrame()
+
+int FFMuxer::WriteFrame(const AVRational * time_base, AVStream * st, AVPacket * pkt)
 {
-	//AVCodecContext *c = ost->enc;
+	/* rescale output packet timestamp values from codec to stream timebase */
+	av_packet_rescale_ts(pkt, *time_base, st->time_base);
+	pkt->stream_index = st->index;
 
-	/* check if we want to generate more frames */
-	const AVRational r = { 1, 1 };
-	if (av_compare_ts(VideoSt.next_pts, VideoCodecContext->time_base, STREAM_DURATION, r) >= 0)
+	/* Write the compressed frame to the media file. */
+	return av_interleaved_write_frame(FormatContext, pkt);
+}
+
+AVFrame * FFMuxer::alloc_audio_frame(AVSampleFormat sample_fmt, uint64_t channel_layout, int sample_rate, int nb_samples)
+{
+	AVFrame *frame = av_frame_alloc();
+	int ret;
+
+	if (!frame)
 	{
-		return nullptr;
+		fprintf(stderr, "Error allocating an audio frame\n");
+		exit(1);
 	}
 
-	/* when we pass a frame to the encoder, it may keep a reference to it
-	* internally; make sure we do not overwrite it here */
-	ErrorCode = av_frame_make_writable(VideoSt.frame);
-	if (ErrorCode < 0)
-	{
-		PrintError(ErrorCode);
-	}
+	frame->format = sample_fmt;
+	frame->channel_layout = channel_layout;
+	frame->sample_rate = sample_rate;
+	frame->nb_samples = nb_samples;
 
-	if (VideoCodecContext->pix_fmt != AV_PIX_FMT_YUV420P) {
-		/* as we only generate a YUV420P picture, we must convert it
-		* to the codec pixel format if needed */
-		if (!VideoScaleContext) {
-			VideoScaleContext = sws_getContext(
-				VideoCodecContext->width,
-				VideoCodecContext->height,
-				AV_PIX_FMT_YUV420P,
-				VideoCodecContext->width, 
-				VideoCodecContext->height,
-				VideoCodecContext->pix_fmt,
-				SWS_BICUBIC, nullptr, nullptr, nullptr
-			);
-			if (!VideoScaleContext) {
-				fprintf(stderr, "Could not initialize the conversion context\n");
-				exit(1);
-			}
+	if (nb_samples) {
+		ret = av_frame_get_buffer(frame, 0);
+		if (ret < 0) {
+			fprintf(stderr, "Error allocating an audio buffer\n");
+			exit(1);
 		}
-		FillYUVImage(VideoSt.tmp_frame, VideoSt.next_pts);
-		sws_scale(
-			VideoScaleContext,
-			(const uint8_t * const *)VideoSt.tmp_frame->data,
-			VideoSt.tmp_frame->linesize,
-			0, 
-			VideoCodecContext->height,
-			VideoSt.frame->data,
-			VideoSt.frame->linesize
-		);
-	}
-	else {
-		FillYUVImage(VideoSt.frame, VideoSt.next_pts);
 	}
 
-	VideoSt.frame->pts = VideoSt.next_pts++;
-
-	return VideoSt.frame;
-}
-
-void FFMuxer::GenerateRandomAudio()
-{
-	
-}
-
-bool FFMuxer::WriteVideoFrame()
-{
-
-	VideoFrame = GetVideoFrame();
-	return WriteFrame(FrameType::Video);	
+	return frame;
 }

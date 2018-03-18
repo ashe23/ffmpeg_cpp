@@ -29,8 +29,8 @@ private:
 	AVStream* VideoStream;
 	AVCodec* AudioCodec;
 	AVCodec* VideoCodec;
-	AVFrame* AudioFrame=nullptr;
-	AVFrame* VideoFrame=nullptr;
+	AVFrame* AudioFrame = nullptr;
+	AVFrame* VideoFrame = nullptr;
 	AVCodecContext* AudioCodecContext;
 	AVCodecContext* VideoCodecContext;
 	AVOutputFormat* OutputFormat;
@@ -56,10 +56,9 @@ private:
 	void OpenCodecs();
 	void OpenOutputFile();
 	void Loop();
-	void Encode();
-	bool WriteFrame(FrameType Type);
 	void FillYUVImage(AVFrame *pict, int frame_index);
-	AVFrame* GetVideoFrame();
-	void GenerateRandomAudio();
-	bool WriteVideoFrame();
+
+
+	int WriteFrame(const AVRational *time_base, AVStream *st, AVPacket *pkt);
+	AVFrame* alloc_audio_frame(enum AVSampleFormat sample_fmt, uint64_t channel_layout, int sample_rate, int nb_samples);
 };
